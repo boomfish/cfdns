@@ -39,11 +39,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 	</cffunction>
 
 	<!--- Public Methods --->
-	<cffunction name="getDNSType" returntype="string" access="public" output="false">
-		<cfreturn getDNS().getConstantName("DNSType", getRecord().getType())/>
+	<cffunction name="getType" returntype="string" access="public" output="false">
+		<cfreturn getDNS().getConstantName("Type", getRecord().getType())/>
 	</cffunction>
-	<cffunction name="getDNSClass" returntype="string" access="public" output="false">
-		<cfreturn getDNS().getConstantName("DNSClass", getRecord().getDClass())/>
+	<cffunction name="getDClass" returntype="string" access="public" output="false">
+		<cfreturn getDNS().getConstantName("DClass", getRecord().getDClass())/>
 	</cffunction>
 	<cffunction name="getTTL" returntype="numeric" access="public" output="false">
 		<cfreturn getRecord().getTTL()/>

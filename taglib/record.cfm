@@ -47,19 +47,19 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 	<cfelseif attributes.display eq "name">
 		<cfoutput>#attributes.record.getName()#</cfoutput>
 	<cfelseif attributes.display eq "type">
-		<cfoutput>#attributes.record.getDNSType()#</cfoutput>
+		<cfoutput>#attributes.record.getType()#</cfoutput>
 	<cfelseif attributes.display eq "class">
-		<cfoutput>#attributes.record.getDNSClass()#</cfoutput>
+		<cfoutput>#attributes.record.getDClass()#</cfoutput>
 	<cfelseif attributes.display eq "data">
-		<cfif attributes.record.getDNSType() eq "A">
+		<cfif attributes.record.getType() eq "A">
 			<cfoutput>#attributes.record.getAddress()#</cfoutput>
-		<cfelseif attributes.record.getDNSType() eq "SOA">
+		<cfelseif attributes.record.getType() eq "SOA">
 			<cfoutput>#attributes.record.getHost()# - #attributes.record.getAdmin()#; serial:#attributes.record.getSerial()#; expire:#attributes.record.getExpire()#; min TTL:#attributes.record.getMinimum()#; refresh:#attributes.record.getRefresh()#; retry:#attributes.record.getRetry()#</cfoutput>
-		<cfelseif attributes.record.getDNSType() eq "NS">
+		<cfelseif attributes.record.getType() eq "NS">
 			<cfoutput>#attributes.record.getTarget()# <cfif attributes.record.getTarget() neq attributes.record.getAdditionalName()>#attributes.record.getAdditionalName()#</cfif></cfoutput>
-		<cfelseif attributes.record.getDNSType() eq "CNAME">
+		<cfelseif attributes.record.getType() eq "CNAME">
 			<cfoutput>#attributes.record.getAlias()# <cfif attributes.record.getAlias() neq attributes.record.getTarget()>#attributes.record.getTarget()#</cfif></cfoutput>
-		<cfelseif attributes.record.getDNSType() eq "MX">
+		<cfelseif attributes.record.getType() eq "MX">
 			<cfoutput>#attributes.record.getTarget()# (#attributes.record.getPriority()#)</cfoutput>
 		<cfelse>
 			<cfoutput>#attributes.record.getName()#</cfoutput>
