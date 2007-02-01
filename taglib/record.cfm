@@ -26,7 +26,6 @@ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --->
-
 <cfsilent>
 
 	<cfparam name="attributes.record" type="any" default=""/>
@@ -39,30 +38,27 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 	</cfif>
 
 	<cfset formatter = createObject("component", "cfdns.util.Formatter").init()/>
-
 </cfsilent>
 <cfif thisTag.executionMode eq "start">
 	<cfif attributes.display eq "ttl">
-		<cfoutput>#attributes.record.getTTL()#s (#formatter.getFormattedTime(attributes.record.getTTL())#)</cfoutput>
+		<cfoutput>#attributes.record.xmlAttributes["ttl"]#s (#formatter.getFormattedTime(attributes.record.xmlAttributes["ttl"])#)</cfoutput>
 	<cfelseif attributes.display eq "name">
-		<cfoutput>#attributes.record.getName()#</cfoutput>
+		<cfoutput>#attributes.record.xmlAttributes["name"]#</cfoutput>
 	<cfelseif attributes.display eq "type">
-		<cfoutput>#attributes.record.getType()#</cfoutput>
+		<cfoutput>#attributes.record.xmlAttributes["type"]#</cfoutput>
 	<cfelseif attributes.display eq "class">
-		<cfoutput>#attributes.record.getDClass()#</cfoutput>
+		<cfoutput>#attributes.record.xmlAttributes["class"]#</cfoutput>
 	<cfelseif attributes.display eq "data">
-		<cfif attributes.record.getType() eq "A">
-			<cfoutput>#attributes.record.getAddress()#</cfoutput>
-		<cfelseif attributes.record.getType() eq "SOA">
-			<cfoutput>#attributes.record.getHost()# - #attributes.record.getAdmin()#; serial:#attributes.record.getSerial()#; expire:#attributes.record.getExpire()#; min TTL:#attributes.record.getMinimum()#; refresh:#attributes.record.getRefresh()#; retry:#attributes.record.getRetry()#</cfoutput>
-		<cfelseif attributes.record.getType() eq "NS">
-			<cfoutput>#attributes.record.getTarget()# <cfif attributes.record.getTarget() neq attributes.record.getAdditionalName()>#attributes.record.getAdditionalName()#</cfif></cfoutput>
-		<cfelseif attributes.record.getType() eq "CNAME">
-			<cfoutput>#attributes.record.getAlias()# <cfif attributes.record.getAlias() neq attributes.record.getTarget()>#attributes.record.getTarget()#</cfif></cfoutput>
-		<cfelseif attributes.record.getType() eq "MX">
-			<cfoutput>#attributes.record.getTarget()# (#attributes.record.getPriority()#)</cfoutput>
-		<cfelse>
-			<cfoutput>#attributes.record.getName()#</cfoutput>
+		<cfif attributes.record.xmlAttributes["type"] eq "A">
+			<cfoutput>#attributes.record.xmlAttributes["address"]#</cfoutput>
+		<cfelseif attributes.record.xmlAttributes["type"] eq "SOA">
+			<cfoutput>#attributes.record.xmlAttributes["host"]# - #attributes.record.xmlAttributes["admin"]#; serial:#attributes.record.xmlAttributes["serial"]#; expire:#attributes.record.xmlAttributes["expire"]#; min TTL:#attributes.record.xmlAttributes["minimum"]#; refresh:#attributes.record.xmlAttributes["refresh"]#; retry:#attributes.record.xmlAttributes["retry"]#</cfoutput>
+		<cfelseif attributes.record.xmlAttributes["type"] eq "NS">
+			<cfoutput>#attributes.record.xmlAttributes["target"]# <cfif attributes.record.xmlAttributes["target"] neq attributes.record.xmlAttributes["additionalName"]>#attributes.record.xmlAttributes["additionalName"]#</cfif></cfoutput>
+		<cfelseif attributes.record.xmlAttributes["type"] eq "CNAME">
+			<cfoutput>#attributes.record.xmlAttributes["alias"]# <cfif attributes.record.xmlAttributes["alias"] neq attributes.record.xmlAttributes["target"]>#attributes.record.xmlAttributes["target"]#</cfif></cfoutput>
+		<cfelseif attributes.record.xmlAttributes["type"] eq "MX">
+			<cfoutput>#attributes.record.xmlAttributes["target"]# (#attributes.record.xmlAttributes["priority"]#)</cfoutput>
 		</cfif>
 	</cfif>
 <cfelse>

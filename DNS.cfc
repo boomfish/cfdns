@@ -30,35 +30,41 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 <cfcomponent>
 
 	<cfset variables.javaLoader = "null"/>
-	<cfset variables.dnsType = "null"/>
-	<cfset variables.dnsClass = "null"/>
-	<cfset variables.dnsAddress = "null"/>
-	<cfset variables.dnsCredibility = "null"/>
+	<cfset variables.type = "null"/>
+	<cfset variables.dClass = "null"/>
+	<cfset variables.address = "null"/>
+	<cfset variables.name = "null"/>
+	<cfset variables.message = "null"/>
+	<cfset variables.section = "null"/>
+	<cfset variables.header = "null"/>
+	<cfset variables.record = "null"/>
+	<cfset variables.flags = "null"/>
 	<cfset variables.inetAddress = "null"/>
 	<cfset variables.reverseMap = "null"/>
-	<cfset variables.timeout = 0/>
-	<cfset variables.retries = 0/>
-	<cfset variables.servers = ""/>
+	<cfset variables.resolverProperties = structNew()/>
 
 	<cffunction name="init" access="public" returntype="DNS" output="false">
 		<cfargument name="javaLoader" type="any" required="true"/>
-		<cfargument name="timeout" type="numeric" required="true" default="10"/>
-		<cfargument name="retries" type="numeric" required="true" default="3"/>
-		<cfargument name="servers" type="string" required="true" default=""/>
+		<cfargument name="resolverProperties" type="struct" required="false"/>
 
 		<cfset setJavaLoader(arguments.javaLoader)/>
-		<cfset setName(arguments.javaLoader.create("org.xbill.DNS.Name"))/>
-		<cfset setRecord(arguments.javaLoader.create("org.xbill.DNS.Record"))/>
-		<cfset setMessage(arguments.javaLoader.create("org.xbill.DNS.Message"))/>
+		<cfif structKeyExists(arguments, "resolverProperties")>
+			<cfset setResolverProperties(arguments.resolverProperties)/>
+		</cfif>
+
+		<!--- Create persistent references these static classes --->
 		<cfset setType(arguments.javaLoader.create("org.xbill.DNS.Type"))/>
 		<cfset setDClass(arguments.javaLoader.create("org.xbill.DNS.DClass"))/>
 		<cfset setAddress(arguments.javaLoader.create("org.xbill.DNS.Address"))/>
-		<cfset setCredibility(arguments.javaLoader.create("org.xbill.DNS.Credibility"))/>
+		<cfset setName(arguments.javaLoader.create("org.xbill.DNS.Name"))/>
+		<cfset setMessage(arguments.javaLoader.create("org.xbill.DNS.Message"))/>
+		<cfset setSection(arguments.javaLoader.create("org.xbill.DNS.Section"))/>
+		<cfset setHeader(arguments.javaLoader.create("org.xbill.DNS.Header"))/>
+		<cfset setRecord(arguments.javaLoader.create("org.xbill.DNS.Record"))/>
+		<cfset setFlags(arguments.javaLoader.create("org.xbill.DNS.Flags"))/>
 		<cfset setInetAddress(arguments.javaLoader.create("java.net.InetAddress"))/>
 		<cfset setReverseMap(arguments.javaLoader.create("org.xbill.DNS.ReverseMap"))/>
-		<cfset setTimeout(arguments.timeout)/>
-		<cfset setRetries(arguments.retries)/>
-		<cfset setServers(arguments.servers)/>
+
 		<cfreturn this/>
 	</cffunction>
 
@@ -66,54 +72,41 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 		<cfargument name="name" type="string" required="true"/>
 		<cfargument name="type" type="string" required="true" default=""/>
 		<cfargument name="class" type="string" required="true" default=""/>
-		<cfargument name="credibility" type="string" required="true" default=""/>
 		<cfargument name="throwOnError" type="boolean" required="true" default="false"/>
 
 		<cfset var result = structNew()/>
 		<cfset var query = "null"/>
 		<cfset var record = "null"/>
-		<cfset var resolver = "null"/>
 		<cfset var response = "null"/>
-		<cfset var section = "null"/>
 		<cfset var _name = arguments.name/>
-		<cfset var _type = getConstantValue("Type", arguments.type)/>
-		<cfset var dClass = getConstantValue("DClass", arguments.class)/>
-		<cfset var _credibility = getConstantValue("Credibility", arguments.credibility)/>
-		<cfset var i = 0/>
-		<cfset var j = 0/>
 
+		<cfset result.abort = false/>
 		<cfset result.success = false/>
-		<cfset result.sections = arrayNew(1)/>
+		<cfset result.message = createObject("component", "Message").init()/>
 
-		<cfif getAddress().isDottedQuad(_name)>
+		<cfif getAddress().isDottedQuad(arguments.name)>
 			<cfset _name = getReverseMap().fromAddress(_name)/>
 		<cfelseif right(_name, 1) neq ".">
 			<cfset _name = _name & "."/>
 		</cfif>
 
 		<cftry>
-			<cfset record = getRecord().newRecord(getName().fromString(_name), javaCast("int", _type), javaCast("int", dClass))/>
+			<cfset record = getRecord().newRecord(getName().fromString(_name), getType().value(arguments.type), getDClass().value(arguments.class))/>
 			<cfset query = getMessage().newQuery(record)/>
-			<cfset resolver = getResolver()/>
-			<cfset response = resolver.send(query)/>
+			<cfset response = getResolver().send(query)/>
+			<cfset result.message.setMessage(response)/>
+			<cfset result.message.setXMLDoc(createMessageXML(response))/>
 			<cfset result.success = true/>
 			<cfcatch>
 				<cfif arguments.throwOnError>
 					<cfthrow type="DNSQueryException" message="#cfcatch.message#"/>
+				<cfelse>
+					<cfset result.abort = true/>
 				</cfif>
 			</cfcatch>
 		</cftry>
 
-		<cfif result.success>
-			<cfloop from="1" to="4" index="i">
-				<cfset section = response.getSectionArray(javaCast("int", i - 1))/>
-				<cfset result.sections[i] = arrayNew(1)/>
-				<cfloop from="1" to="#arrayLen(section)#" index="j">
-					<cfset arrayAppend(result.sections[i], createObject("component", "Record").init(this, section[j]))/>
-				</cfloop>
-			</cfloop>
-		</cfif>
-		<cfreturn result.sections/>
+		<cfreturn result.message/>
 	</cffunction>
 
 
@@ -137,6 +130,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 		<cfset var records = "null"/>
 		<cfset var i = 0/>
 
+		<!--- TODO: use the dnsjava address instead --->
 		<cftry>
 			<cfset sections = doQuery(name="#arguments.address#", type="PTR", class="IN", throwOnError="true")/>
 			<cfset records = sections[2]/>
@@ -159,6 +153,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 		<cfset var records = "null"/>
 		<cfset var i = 0/>
 
+		<!--- TODO: use the dnsjava address instead --->
 		<cftry>
 			<cfset sections = doQuery(name="#arguments.name#", type="A", class="IN", throwOnError="true")/>
 			<cfset records = sections[2]/>
@@ -173,100 +168,142 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 		<cfreturn result/>
 	</cffunction>
 
+
+	<cffunction name="createMessageXML" returntype="any" access="private" output="false">
+		<cfargument name="message" type="any" required="true"/>
+
+		<cfset var xd = xmlNew(true)/>
+		<cfset var ra = "null"/>
+		<cfset var header = "null"/>
+		<cfset var section = "null"/>
+		<cfset var sections = "null"/>
+		<cfset var record = "null"/>
+		<cfset var records = "null"/>
+		<cfset var type = ""/>
+		<cfset var class = ""/>
+		<cfset var i = 0/>
+		<cfset var j = 0/>
+
+		<cfset xd.xmlRoot = xmlElemNew(xd, "message")/>
+		<cfset header = xmlElemNew(xd, "header")/>
+		<cfset sections = xmlElemNew(xd, "sections")/>
+
+		<cfloop from="1" to="4" index="i">
+			<cfset ra = arguments.message.getSectionArray(javaCast("int", i - 1))/>
+			<cfif arrayLen(ra) gt 0>
+				<cfset section = xmlElemNew(xd, "section")/>
+				<cfset section.xmlAttributes["id"] = getSection().string(javaCast("int", i - 1))/>
+				<cfset section.xmlAttributes["name"] = getSection().longstring(javaCast("int", i - 1))/>
+				<cfloop from="1" to="#arrayLen(ra)#" index="j">
+					<cfset records = xmlElemNew(xd, "records")/>
+					<cfset record = xmlElemNew(xd, "record")/>
+					<cfif ra[j].getTTL() gt 0>
+						<cfset record.xmlAttributes["ttl"] = ra[j].getTTL()/>
+					</cfif>
+					<cfset type = getType().string(ra[j].getType())/>
+					<cfset class = getDClass().string(ra[j].getDClass())/>
+					<cfset record.xmlAttributes["type"] = type/>
+					<cfset record.xmlAttributes["class"] = class/>
+					<cfset record.xmlAttributes["name"] = ra[j].getName()/>
+					<cfif ra[j].getAdditionalName() neq "">
+						<cfset record.xmlAttributes["additionalName"] = ra[j].getAdditionalName()/>
+					</cfif>
+					<cfif i gt 1>
+						<cfif type eq "SOA">
+							<cfset record.xmlAttributes["admin"] = ra[j].getAdmin()/>
+							<cfset record.xmlAttributes["expire"] = ra[j].getExpire()/>
+							<cfset record.xmlAttributes["host"] = ra[j].getHost()/>
+							<cfset record.xmlAttributes["minimum"] = ra[j].getMinimum()/>
+							<cfset record.xmlAttributes["refresh"] = ra[j].getRefresh()/>
+							<cfset record.xmlAttributes["retry"] = ra[j].getRetry()/>
+							<cfset record.xmlAttributes["serial"] = ra[j].getSerial()/>
+						</cfif>
+						<cfif type eq "MX">
+							<cfset record.xmlAttributes["priority"] = ra[j].getPriority()/>
+							<cfset record.xmlAttributes["target"] = ra[j].getTarget()/>
+						</cfif>
+						<cfif type eq "NS">
+							<cfset record.xmlAttributes["target"] = ra[j].getTarget()/>
+						</cfif>
+						<cfif type eq "A">
+							<cfset record.xmlAttributes["address"] = ra[j].getAddress().getHostAddress()/>
+						</cfif>
+						<cfif type eq "CNAME">
+							<cfset record.xmlAttributes["alias"] = ra[j].getAlias()/>
+							<cfset record.xmlAttributes["target"] = ra[j].getTarget()/>
+						</cfif>
+					</cfif>
+
+					<cfset records.xmlChildren[j] = record/>
+					<cfset arrayAppend(section.xmlChildren, records)/>
+					<cfset sections.xmlChildren[i] = section/>
+				</cfloop>
+			</cfif>
+		</cfloop>
+
+		<cfset arrayAppend(xd.xmlRoot.xmlChildren, header)/>
+		<cfset arrayAppend(xd.xmlRoot.xmlChildren, sections)/>
+		<cfreturn xd/>
+	</cffunction>
+
 	<cffunction name="getResolver" returntype="any" access="private" output="false">
 		<cfset var resolver = "null"/>
 
-		<!--- Potential performance improvement: use a dirty bit to recycle the last resolver if state is static --->
-		<cfif getServers() neq "">
-			<cfset resolver = getJavaLoader().create("org.xbill.DNS.ExtendedResolver").init(getServers().split(","))/>
+		<cfif getResolverProperty("servers") neq "">
+			<cfset resolver = getJavaLoader().create("org.xbill.DNS.ExtendedResolver").init(getResolverProperty("servers").split(","))/>
 		<cfelse>
 			<cfset resolver = getJavaLoader().create("org.xbill.DNS.ExtendedResolver")/>
 		</cfif>
-		<cfset resolver.setTimeout(javaCast("int", getTimeout()))/>
-		<cfset resolver.setRetries(javaCast("int", getRetries()))/>
+		<cfif getResolverProperty("timeout", 0) gt 0>
+			<cfset resolver.setTimeout(javaCast("int", getResolverProperty("timeout")))/>
+		</cfif>
+		<cfif getResolverProperty("retries", 0) gt 0>
+			<cfset resolver.setRetries(javaCast("int", getResolverProperty("retries")))/>
+		</cfif>
+		<cfif getResolverProperty("port", 0) gt 0>
+			<cfset resolver.setPort(javaCast("int", getResolverProperty("port")))/>
+		</cfif>
+		<cfif getResolverProperty("tcp", false) eq true>
+			<cfset resolver.setTCP(javaCast("boolean", getResolverProperty("tcp")))/>
+		</cfif>
 		<cfreturn resolver/>
 	</cffunction>
 
-	<cffunction name="getConstantName" returntype="string" access="public" output="false">
-		<cfargument name="type" type="string" required="true" default="DNSType"/>
-		<cfargument name="value" type="numeric" required="true" default="0"/>
+	<cffunction name="getResolverProperty" returntype="any" access="public" output="false">
+		<cfargument name="property" type="string" required="true"/>
+		<cfargument name="default" type="any" required="false" default=""/>
 
-		<cfif arguments.type eq "Type">
-			<cfreturn getType().string(javaCast("int", arguments.value))/>
-		<cfelseif arguments.type eq "DClass">
-			<cfreturn getDClass().string(javaCast("int", arguments.value))/>
-		<cfelseif arguments.type eq "Credibility">
-			<cfreturn "ANY"/>
+		<cfset var rp = getResolverProperties()/>
+
+		<cfif structKeyExists(rp, arguments.property)>
+			<cfreturn rp[arguments.property]/>
 		<cfelse>
-			<cfreturn ""/>
+			<cfreturn arguments.default/>
 		</cfif>
 	</cffunction>
-	<cffunction name="getConstantValue" returntype="numeric" access="public" output="false">
-		<cfargument name="type" type="string" required="true" default="DNSType"/>
-		<cfargument name="name" type="string" required="true" default=""/>
+	<cffunction name="setResolverProperty" returntype="void" access="public" output="false">
+		<cfargument name="property" type="string" required="true"/>
+		<cfargument name="value" type="any" required="true"/>
 
-		<cfif arguments.type eq "Type">
-			<cfreturn getType().value(arguments.name)/>
-		<cfelseif arguments.type eq "DClass">
-			<cfreturn getDClass().value(arguments.name)/>
-		<cfelseif arguments.type eq "Credibility">
-			<cfreturn -1/>
+		<cfset var rp = getResolverProperties()/>
+
+		<cfif structKeyExists(rp, arguments.property)>
+			<cfset structUpdate(rp, arguments.property, arguments.value)/>
 		<cfelse>
-			<cfreturn -1/>
+			<cfset structInsert(rp, arguments.property, arguments.value)/>
 		</cfif>
 	</cffunction>
 
-	<!--- State Settings --->
-	<cffunction name="getTimeout" returntype="any" access="private" output="false">
-		<cfreturn variables.timeout/>
+	<cffunction name="getResolverProperties" returntype="struct" access="private" output="false">
+		<cfreturn variables.resolverProperties/>
 	</cffunction>
-	<cffunction name="setTimeout" returntype="void" access="private" output="false">
-		<cfargument name="timeout" type="any" required="true"/>
-		<cfset variables.timeout = arguments.timeout/>
-	</cffunction>
-
-	<cffunction name="getRetries" returntype="any" access="private" output="false">
-		<cfreturn variables.retries/>
-	</cffunction>
-	<cffunction name="setRetries" returntype="void" access="private" output="false">
-		<cfargument name="retries" type="any" required="true"/>
-		<cfset variables.retries = arguments.retries/>
-	</cffunction>
-
-	<cffunction name="getServers" returntype="any" access="private" output="false">
-		<cfreturn variables.servers/>
-	</cffunction>
-	<cffunction name="setServers" returntype="void" access="public" output="false">
-		<cfargument name="servers" type="any" required="true"/>
-		<cfset variables.servers = arguments.servers/>
+	<cffunction name="setResolverProperties" returntype="void" access="private" output="false">
+		<cfargument name="resolverProperties" type="struct" required="true"/>
+		<cfset variables.resolverProperties = arguments.resolverProperties/>
 	</cffunction>
 
 
 	<!--- Private Methods --->
-	<cffunction name="getName" returntype="any" access="private" output="false">
-		<cfreturn variables.name/>
-	</cffunction>
-	<cffunction name="setName" returntype="void" access="private" output="false">
-		<cfargument name="name" type="any" required="true"/>
-		<cfset variables.name = arguments.name/>
-	</cffunction>
-
-	<cffunction name="getMessage" returntype="any" access="private" output="false">
-		<cfreturn variables.message/>
-	</cffunction>
-	<cffunction name="setMessage" returntype="void" access="private" output="false">
-		<cfargument name="message" type="any" required="true"/>
-		<cfset variables.message = arguments.message/>
-	</cffunction>
-
-	<cffunction name="getRecord" returntype="any" access="private" output="false">
-		<cfreturn variables.record/>
-	</cffunction>
-	<cffunction name="setRecord" returntype="void" access="private" output="false">
-		<cfargument name="record" type="any" required="true"/>
-		<cfset variables.record = arguments.record/>
-	</cffunction>
-
 	<cffunction name="getType" returntype="any" access="private" output="false">
 		<cfreturn variables.type/>
 	</cffunction>
@@ -291,12 +328,52 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 		<cfset variables.address = arguments.address/>
 	</cffunction>
 
-	<cffunction name="getCredibility" returntype="any" access="private" output="false">
-		<cfreturn variables.credibility/>
+	<cffunction name="getName" returntype="any" access="private" output="false">
+		<cfreturn variables.name/>
 	</cffunction>
-	<cffunction name="setCredibility" returntype="void" access="private" output="false">
-		<cfargument name="credibility" type="any" required="true"/>
-		<cfset variables.credibility = arguments.credibility/>
+	<cffunction name="setName" returntype="void" access="private" output="false">
+		<cfargument name="name" type="any" required="true"/>
+		<cfset variables.name = arguments.name/>
+	</cffunction>
+
+	<cffunction name="getMessage" returntype="any" access="private" output="false">
+		<cfreturn variables.message/>
+	</cffunction>
+	<cffunction name="setMessage" returntype="void" access="private" output="false">
+		<cfargument name="message" type="any" required="true"/>
+		<cfset variables.message = arguments.message/>
+	</cffunction>
+
+	<cffunction name="getSection" returntype="any" access="private" output="false">
+		<cfreturn variables.section/>
+	</cffunction>
+	<cffunction name="setSection" returntype="void" access="private" output="false">
+		<cfargument name="section" type="any" required="true"/>
+		<cfset variables.section = arguments.section/>
+	</cffunction>
+
+	<cffunction name="getHeader" returntype="any" access="private" output="false">
+		<cfreturn variables.header/>
+	</cffunction>
+	<cffunction name="setHeader" returntype="void" access="private" output="false">
+		<cfargument name="header" type="any" required="true"/>
+		<cfset variables.header = arguments.header/>
+	</cffunction>
+
+	<cffunction name="getRecord" returntype="any" access="private" output="false">
+		<cfreturn variables.record/>
+	</cffunction>
+	<cffunction name="setRecord" returntype="void" access="private" output="false">
+		<cfargument name="record" type="any" required="true"/>
+		<cfset variables.record = arguments.record/>
+	</cffunction>
+
+	<cffunction name="getFlags" returntype="any" access="private" output="false">
+		<cfreturn variables.flags/>
+	</cffunction>
+	<cffunction name="setFlags" returntype="void" access="private" output="false">
+		<cfargument name="flags" type="any" required="true"/>
+		<cfset variables.flags = arguments.flags/>
 	</cffunction>
 
 	<cffunction name="getInetAddress" returntype="any" access="private" output="false">
