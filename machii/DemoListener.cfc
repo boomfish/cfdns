@@ -67,48 +67,95 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 		<cfset var result = structNew()/>
 		<cfset var dns = getProperty("serviceFactory").getBean("DNS")/>
-		<cfset var servers = arguments.event.getArg("server")/>
+		<cfset var vm = getProperty("serviceFactory").getBean("validationMessages")/>
+		<cfset var queryArgs = structNew()/>
 
+		<!--- Structure returned for view --->
 		<cfset result.abort = false/>
 		<cfset result.success = false/>
-		<cfset result.message = ""/>
-		<cfset result.sections = arrayNew(1)/>
+		<cfset result.validationMessages = vm/>
+		<cfset result.errorMessage = ""/>
+		<cfset result.response = "null"/>
 
-		<cfif arguments.event.getArg("name") eq "">
+		<!--- Gather arguments for query --->
+		<cfset gatherQueryArgs(arguments.event, queryArgs)/>
+
+		<!--- Validate arguments --->
+		<cfset validateQueryArgs(queryArgs, vm)/>
+		<cfif vm.hasMessages()>
 			<cfset result.abort = true/>
-			<cfset result.message = "Please enter a name, such as company.com or 1.2.3.4"/>
-		<cfelseif servers neq "" and reFindNoCase("^[-a-z0-9\.]+$", servers) neq 1>
-			<cfset result.abort = true/>
-			<cfset result.message = "Please enter a server host name or IP address, such as ns1.company.com"/>
-		<cfelseif not isNumeric(arguments.event.getArg("timeout")) or arguments.event.getArg("timeout") gt 60>
-			<cfset result.abort = true/>
-			<cfset result.message = "Please enter the timeout as a number of seconds between 1 and 60"/>
-		<cfelseif not isNumeric(arguments.event.getArg("retries")) or arguments.event.getArg("retries") gt 10>
-			<cfset result.abort = true/>
-			<cfset result.message = "Please enter the retries as a number between 1 and 10"/>
-		<cfelseif not isNumeric(arguments.event.getArg("port"))>
-			<cfset result.abort = true/>
-			<cfset result.message = "Please enter a numeric port number between 0 and 65535"/>
 		</cfif>
 
 		<cfif not result.abort>
 			<cftry>
-				<cfset dns.setResolverProperty("servers", servers)/>
-				<cfif arguments.event.isArgDefined("tcp")>
-					<cfset dns.setResolverProperty("tcp", true)/>
+				<cfset dns.setResolverProperty("servers", queryArgs.server)/>
+				<cfif queryArgs.tcp>
+					<cfset dns.setResolverProperty("tcp", queryArgs.tcp)/>
 				</cfif>
-				<cfif arguments.event.getArg("port", 53)>
-					<cfset dns.setResolverProperty("port", arguments.event.getArg("port"))/>
-				</cfif>
-				<cfset result.response = dns.doQuery(arguments.event.getArg("name"), arguments.event.getArg("type"), arguments.event.getArg("class"), true)/>
+				<cfset dns.setResolverProperty("port", queryArgs.port)/>
+				<cfset dns.setResolverProperty("retries", queryArgs.retries)/>
+				<cfset dns.setResolverProperty("timeout", queryArgs.timeout)/>
+				<cfset result.response = dns.doQuery(queryArgs.name, queryArgs.type, queryArgs.class, true)/>
 				<cfset result.success = true/>
 				<cfcatch>
 					<cfset result.abort = true/>
-					<cfset result.message = "Error Message: " & cfcatch.message/>
+					<cfset result.errorMessage = "Error Message: " & cfcatch.message/>
 				</cfcatch>
 			</cftry>
 		</cfif>
 		<cfreturn result/>
 	</cffunction>
+	
+	<cffunction name="processDataRequest" returntype="struct" access="public" output="false">
+		<cfargument name="event" type="MachII.framework.Event" required="true"/>
 
+		<cfset var result = "null"/>
+		
+		<cfset result = processQueryForm(arguments.event)/>
+		<cfreturn result/>
+	</cffunction>
+	
+	<cffunction name="gatherQueryArgs" returntype="void" access="private" output="false">
+		<cfargument name="event" type="any" required="true"/>
+		<cfargument name="queryArgs" type="struct" required="true"/>
+		
+		<!--- Accommodate empty or missing arguments by setting defaults --->
+		<cfset arguments.queryArgs.name = arguments.event.getArg("name")/>
+		<cfset arguments.queryArgs.type = arguments.event.getArg("type", "ANY")/>
+		<cfset arguments.queryArgs.class = arguments.event.getArg("class", "IN")/>
+		<cfset arguments.queryArgs.timeout = arguments.event.getArg("timeout", 10)/>
+		<cfset arguments.queryArgs.retries = arguments.event.getArg("retries", 3)/>
+		<cfset arguments.queryArgs.server = arguments.event.getArg("server")/>
+		<cfset arguments.queryArgs.port = arguments.event.getArg("port", 53)/>
+		<cfset arguments.queryArgs.tcp = iif(arguments.event.isArgDefined("tcp"), true, false)/>
+		<cfset arguments.queryArgs.rawMessage = iif(arguments.event.isArgDefined("rawMessage"), true, false)/>
+	</cffunction>
+	
+	<cffunction name="validateQueryArgs" returntype="void" access="private" output="false">
+		<cfargument name="args" type="struct" required="true"/>
+		<cfargument name="vm" type="any" required="true"/>
+	
+		<cfif arguments.args.name eq "" or reFindNoCase("^[-a-z0-9\.]+$", arguments.args.name) eq 0>
+			<cfset arguments.vm.add("name", "Please enter a name, such as company.com or 1.2.3.4")/>
+		</cfif>
+		<cfif arguments.args.type eq "">
+			<cfset arguments.vm.add("type", "Please choose a record type.")/>
+		</cfif>
+		<cfif arguments.args.class eq "">
+			<cfset arguments.vm.add("class", "Please choose a record class.")/>
+		</cfif>
+		<cfif arguments.args.server neq "" and reFindNoCase("^[-a-z0-9\.]+$", arguments.args.server) neq 1>
+			<cfset arguments.vm.add("server", "Please enter a server host name or IP address, such as ns1.company.com")/>
+		</cfif>
+		<cfif not isNumeric(arguments.args.timeout) or arguments.args.timeout lte 0 or arguments.args.timeout gt 30>
+			<cfset arguments.vm.add("timeout", "Please enter the timeout as a number of seconds between 1 and 30")/>
+		</cfif>
+		<cfif not isNumeric(arguments.args.retries) or arguments.args.retries lte 0 or arguments.args.retries gt 10>
+			<cfset arguments.vm.add("timeout", "Please enter the number of retires between 1 and 10")/>
+		</cfif>
+		<cfif not isNumeric(arguments.args.port) or arguments.args.port lte 0 or arguments.args.port gt 65535>
+			<cfset arguments.vm.add("port", "Please enter a numeric port number between 0 and 65535")/>
+		</cfif>
+
+	</cffunction>
 </cfcomponent>

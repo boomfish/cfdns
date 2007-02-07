@@ -85,7 +85,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 		<cfset result.message = createObject("component", "Message").init()/>
 
 		<cfif getAddress().isDottedQuad(arguments.name)>
-			<cfset _name = getReverseMap().fromAddress(_name)/>
+			<cfset _name = getReverseMap().fromAddress(_name).toString()/>
 		<cfelseif right(_name, 1) neq ".">
 			<cfset _name = _name & "."/>
 		</cfif>
@@ -222,7 +222,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 							<cfset record.xmlAttributes["priority"] = ra[j].getPriority()/>
 							<cfset record.xmlAttributes["target"] = ra[j].getTarget()/>
 						</cfif>
-						<cfif type eq "NS">
+						<cfif type eq "NS" or type eq "PTR">
 							<cfset record.xmlAttributes["target"] = ra[j].getTarget()/>
 						</cfif>
 						<cfif type eq "A">
