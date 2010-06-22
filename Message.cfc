@@ -31,7 +31,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 	<cffunction name="init" returntype="Message" access="public" output="false">
 		<cfargument name="message" type="any" required="false"/>
-		<cfargument name="xmldoc" type="any" required="false"/>
+		<cfargument name="xmldoc" type="xml" required="false"/>
 
 		<cfif structKeyExists(arguments, "message")>
 			<cfset setMessage(arguments.message)/>
@@ -48,11 +48,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 	</cffunction>
 
 	<!--- Public Methods --->
-	<cffunction name="getXMLDoc" returntype="any" access="public" output="false">
+	<cffunction name="getXMLDoc" returntype="xml" access="public" output="false">
 		<cfreturn variables.xmldoc/>
 	</cffunction>
 	<cffunction name="setXMLDoc" returntype="void" access="public" output="false">
-		<cfargument name="xmldoc" type="any" required="true"/>
+		<cfargument name="xmldoc" type="xml" required="true"/>
 		<cfset variables.xmldoc = arguments.xmldoc/>
 	</cffunction>
 

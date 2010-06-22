@@ -68,11 +68,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 		<cfreturn this/>
 	</cffunction>
 
-	<cffunction name="doQuery" returntype="any" access="public" output="false">
+	<cffunction name="doQuery" returntype="Message" access="public" output="false">
 		<cfargument name="name" type="string" required="true"/>
-		<cfargument name="type" type="string" required="true" default=""/>
-		<cfargument name="class" type="string" required="true" default=""/>
-		<cfargument name="throwOnError" type="boolean" required="true" default="false"/>
+		<cfargument name="type" type="string" required="false" default="A"/>
+		<cfargument name="class" type="string" required="false" default="IN"/>
+		<cfargument name="throwOnError" type="boolean" required="false" default="false"/>
 
 		<cfset var result = structNew()/>
 		<cfset var query = "null"/>
@@ -84,7 +84,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 		<cfset result.success = false/>
 		<cfset result.message = createObject("component", "Message").init()/>
 
-		<cfif getAddress().isDottedQuad(arguments.name)>
+		<cfif getAddress().isDottedQuad(_name)>
 			<cfset _name = getReverseMap().fromAddress(_name).toString()/>
 		<cfelseif right(_name, 1) neq ".">
 			<cfset _name = _name & "."/>
@@ -169,7 +169,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 	</cffunction>
 
 
-	<cffunction name="createMessageXML" returntype="any" access="private" output="false">
+	<cffunction name="createMessageXML" returntype="xml" access="private" output="false">
 		<cfargument name="message" type="any" required="true"/>
 
 		<cfset var xd = xmlNew(true)/>
